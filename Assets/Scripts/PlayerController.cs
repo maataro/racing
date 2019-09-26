@@ -11,7 +11,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float rotateSpeed = 0.05f;
     private Rigidbody playerRb;
     private AudioSource audioSource;
-    [SerializeField] private Vector3 startPosition;
+    public Vector3 restartPosition;
+
     public AudioClip explosiveSound;
     public AudioClip goalSound;
     public bool isOnGround = true;
@@ -20,7 +21,11 @@ public class PlayerController : MonoBehaviour
     public TextMeshProUGUI speedmeterText;
     public TextMeshProUGUI rpmText;
     public ParticleSystem dirtParticle;
-    private bool isRunning = false;
+    private bool isHighspeed = false;
+    private bool isRunning = false;   
+    public AudioClip drivingSound;
+    public AudioClip highspeedSound;
+    public AudioClip idleSound;
 
 
     // Start is called before the first frame update
@@ -28,8 +33,14 @@ public class PlayerController : MonoBehaviour
     {
         playerRb = GetComponent<Rigidbody>();
         audioSource = GetComponent<AudioSource>();
-        startPosition = new Vector3(-7.5f, 5f, -118f);
+        restartPosition = new Vector3(-7.5f, 5f, -118f);
         gameManager = GameObject.Find("Game Manager").GetComponent<GameManager>();
+
+        audioSource.loop = true;
+        audioSource.clip = idleSound;
+        audioSource.volume = 0.2f;
+        audioSource.Play();
+
     }
 
     // Update is called once per frame
@@ -49,42 +60,58 @@ public class PlayerController : MonoBehaviour
                 //playerAudio.PlayOneShot(jumpSound, 1.0f);
 
                 dirtParticle.Stop();
-                isRunning = false;
-
-            
+                isHighspeed = false;
+                isRunning = false;            
             } else if(isOnGround)
             {
                 playerRb.AddRelativeForce(Vector3.forward * forwardInput * horsePower);
                 transform.Rotate(Vector3.up, horizontalInput * rotateSpeed);
                 speed = Mathf.Round(playerRb.velocity.magnitude * 3.6f);  // 2.237f to MPH value
 
-                if (speed > 100 && !isRunning)
+                if (speed > 0 && !isRunning)
+                {
+                    isRunning = true;
+                    // play running sound  
+                    playClip(drivingSound, 0.7f);
+
+                } else if (speed < 1 && isRunning)
+                {
+                    isRunning = false;
+                    // stop running sound
+                    audioSource.Stop();
+                    playClip(idleSound, 0.2f);
+                }
+
+                if (speed > 100 && !isHighspeed)
                 {
                     dirtParticle.Play();
-                    isRunning = true;
-                } else if(speed < 100 && isRunning)
+                    isHighspeed = true;
+                    audioSource.Stop();
+                    playClip(highspeedSound, 0.2f);
+
+                } else if(speed < 100 && isHighspeed)
                 {
                     dirtParticle.Stop();
-                    isRunning = false;                    
+                    isHighspeed = false;
+                    audioSource.Stop();
+                    playClip(drivingSound, 0.7f);
                 }
 
                 if (speed >= 100)
                 {
                     speedmeterText.color = new Color(255, 0, 0, 255);
+                    rpmText.color = new Color(255, 0, 0, 255);
                 } else
                 {
                     speedmeterText.color = new Color(0, 255, 0, 255);
+                    rpmText.color = new Color(0, 255, 0, 255);
                 }
                 speedmeterText.SetText("Speed: " + speed + " km/h");
                 rpm = Mathf.Round((speed % 30) * 40);
 
                 rpmText.SetText("RPM: " + rpm);
             }
-
-
-        }
-                             
-        
+        }        
     }
 
     private void OnTriggerEnter(Collider other)
@@ -96,7 +123,7 @@ public class PlayerController : MonoBehaviour
         else if(other.CompareTag("Bottom"))
         {
             playerRb.velocity = Vector3.zero;
-            transform.position = startPosition;
+            transform.position = restartPosition;
             //transform.rotation = Quaternion.Euler(Vector3.forward);
             
         }       
@@ -122,66 +149,12 @@ public class PlayerController : MonoBehaviour
             //dirtParticle.Play();
         }
     }
-}
 
-/*
-public class PlayerController : MonoBehaviour
-{
-    private Rigidbody playerRb;
-    private Animator playerAnim;
-    private AudioSource playerAudio;
-    public ParticleSystem explosionParticle;
-    public ParticleSystem dirtParticle;
-    public AudioClip jumpSound;
-    public AudioClip crashSound;
-    public float jumpForce = 5f;
-    public float gravityModifier = 0f;
-    public bool isOnGround = true;
-    public bool gameOver;
-
-    // Start is called before the first frame update
-    void Start()
+    private void playClip(AudioClip clipName, float clipVolume)
     {
-        playerRb = GetComponent<Rigidbody>();
-        playerAnim = GetComponent<Animator>();
-        playerAudio = GetComponent<AudioSource>();
-        Physics.gravity *= gravityModifier;
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space) && isOnGround && !gameOver)
-        {
-            playerRb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-            isOnGround = false;
-            playerAnim.SetTrigger("Jump_trig");
-            dirtParticle.Stop();
-            playerAudio.PlayOneShot(jumpSound, 1.0f);
-        }
-
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-
-        if (collision.gameObject.CompareTag("Ground"))
-        {
-            isOnGround = true;
-            dirtParticle.Play();
-        }
-        else if (collision.gameObject.CompareTag("Obstacle"))
-        {
-            Debug.Log("Game Over!");
-            gameOver = true;
-            playerAnim.SetBool("Death_b", true);
-            playerAnim.SetInteger("DeathType_int", 1);
-            explosionParticle.Play();
-            dirtParticle.Stop();
-            playerAudio.PlayOneShot(crashSound, 1.0f);
-
-        }
+        audioSource.loop = true;
+        audioSource.clip = clipName;
+        audioSource.volume = clipVolume;
+        audioSource.Play();
     }
 }
-*/
